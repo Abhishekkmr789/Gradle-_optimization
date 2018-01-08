@@ -1,0 +1,140 @@
+apply plugin: 'com.android.application'
+
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+
+
+
+android {
+    compileSdkVersion 27
+    buildToolsVersion "27.0.2"
+    defaultConfig {
+        applicationId "gradlesetup.com.gradlesetupdemo"
+        minSdkVersion 15
+        targetSdkVersion 27
+        versionCode buildVersionCode(version_name_debug)
+        versionName version_name_debug
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+    }
+
+
+    signingConfigs {
+        debug_key {
+            storeFile file(keystoreProperties['storeFileDebug'])
+            storePassword keystoreProperties['storePasswordDebug']
+            keyAlias keystoreProperties['keyAliasDebug']
+            keyPassword keystoreProperties['keyPasswordDebug']
+        }
+        release_prod_key {
+            storeFile file(keystoreProperties['storeFileDebug'])
+            storePassword keystoreProperties['storePasswordDebug']
+            keyAlias keystoreProperties['keyAliasDebug']
+            keyPassword keystoreProperties['keyPasswordDebug']
+            /*  storeFile file(keystoreProperties['storeFileProd'])
+              storePassword keystoreProperties['storePasswordProd']
+              keyAlias keystoreProperties['keyAliasProd']
+              keyPassword keystoreProperties['keyPasswordProd']*/
+        }
+    }
+
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release_prod_key
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+
+        }
+        debug {
+            signingConfig signingConfigs.debug_key
+            debuggable true
+        }
+        prod {
+            signingConfig signingConfigs.release_prod_key
+            debuggable true
+        }
+
+    }
+
+    applicationVariants.all { variant ->
+        variant.outputs.each { output ->
+            def projectName = "GradleSetup"
+            def SEP = "_"
+            def flavor = variant.productFlavors[0].name
+            def buildType = variant.variantData.variantConfiguration.buildType.name
+
+            def date = new Date()
+            def formattedDate = date.format('ddMMMyyyy')
+            def newApkName
+            if (variant.buildType.isDebuggable()) {
+                variant.mergedFlavor.versionName = version_name_debug
+                variant.mergedFlavor.versionCode=buildVersionCode(version_name_debug)
+                newApkName = projectName + SEP + version_name_debug + SEP + flavor + SEP + buildType + SEP + formattedDate + ".apk"
+            } else {
+                variant.mergedFlavor.versionName = version_name_client
+                variant.mergedFlavor.versionCode=buildVersionCode(version_name_client)
+                newApkName = projectName + SEP + version_name_client + SEP + flavor + SEP + buildType + SEP + formattedDate + ".apk"
+            }
+            output.outputFile = new File(output.outputFile.parent, newApkName)
+        }
+    }
+
+
+    productFlavors {
+        dev {
+            //    signingConfig signingConfigs.release_prod
+            getEnvProps('./config/development.properties').each { p ->
+                buildConfigField 'String', p.key, p.value
+            }
+            /*dynatrace {
+            defaultConfig {
+                applicationId dynatraceProperties['prod_applicationId']
+                environmentId dynatraceProperties['prod_environmentId']
+                cluster dynatraceProperties['cluster']
+            }
+        }*/
+        }
+
+        client {
+            // versionNameSuffix "-release"
+            getEnvProps('./config/client.properties').each { p ->
+                buildConfigField 'String', p.key, p.value
+            }
+            /* dynatrace {
+            defaultConfig {
+                applicationId dynatraceProperties['cert_applicationId']
+                environmentId dynatraceProperties['cert_environmentId']
+                cluster dynatraceProperties['cluster']
+            }
+        }*/
+        }
+
+        production {
+            // versionNameSuffix "-prod"
+            getEnvProps('./config/production.properties').each { p ->
+                buildConfigField 'String', p.key, p.value
+            }
+
+        }
+    }
+}
+
+
+def getEnvProps(path) {
+    Properties props = new Properties()
+    props.load(new FileInputStream(file(path)))
+    return props
+}
+
+
+dependencies {
+    compile fileTree(dir: 'libs', include: ['*.jar'])
+    androidTestCompile('com.android.support.test.espresso:espresso-core:2.2.2', {
+        exclude group: 'com.android.support', module: 'support-annotations'
+    })
+    compile 'com.android.support:appcompat-v7:27.+'
+    compile 'com.android.support.constraint:constraint-layout:1.0.2'
+    testCompile 'junit:junit:4.12'
+}
+
